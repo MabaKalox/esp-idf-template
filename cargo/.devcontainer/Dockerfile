@@ -16,30 +16,30 @@ ARG INSTALL_RUST_TOOLCHAIN=install-rust-toolchain.sh
 RUN apt-get update \
     && apt-get install -y git curl gcc clang ninja-build libudev-dev unzip xz-utils\
     python3 python3-pip python3-venv libusb-1.0-0 libssl-dev pkg-config libtinfo5 libpython2.7 \
+    zsh \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts
 
-# Set users
-RUN adduser --disabled-password --gecos "" ${CONTAINER_USER}
-USER ${CONTAINER_USER}
-WORKDIR /home/${CONTAINER_USER}
+WORKDIR /workspace
 
 # Install Rust toolchain, extra crates and esp-idf
-ENV PATH=${PATH}:/home/${CONTAINER_USER}/.cargo/bin:/home/${CONTAINER_USER}/opt/bin
+ENV PATH=${PATH}:/root/.cargo/bin
 
-ADD --chown=${CONTAINER_USER}:${CONTAINER_GROUP} \
-    https://github.com/esp-rs/rust-build/releases/download/v${TOOLCHAIN_VERSION}/${INSTALL_RUST_TOOLCHAIN} \
-    /home/${CONTAINER_USER}/${INSTALL_RUST_TOOLCHAIN}
+ADD https://github.com/esp-rs/rust-build/releases/download/v${TOOLCHAIN_VERSION}/${INSTALL_RUST_TOOLCHAIN} \
+    /workspace/${INSTALL_RUST_TOOLCHAIN}
 
 RUN chmod a+x ${INSTALL_RUST_TOOLCHAIN} \
     && ./${INSTALL_RUST_TOOLCHAIN} \
     --extra-crates "ldproxy cargo-espflash wokwi-server web-flash" \
-    --export-file /home/${CONTAINER_USER}/export-esp.sh \
+    --export-file /workspace/export-esp.sh \
     --esp-idf-version "${ESP_IDF_VERSION}" \
     --minified-esp-idf "YES" \
     --build-target "${ESP_BOARD}" \
     && rustup component add clippy rustfmt
 
+ADD https://git.grml.org/f/grml-etc-core/etc/zsh/zshrc /root/.zshrc
+ADD https://git.grml.org/f/grml-etc-core/etc/skel/.zshrc /root/.zshrc.local
 # Activate ESP environment
-RUN echo "source /home/${CONTAINER_USER}/export-esp.sh" >> ~/.bashrc
+RUN echo "source /workspace/export-esp.sh" >> ~/.bashrc \
+    && echo "source /workspace/export-esp.sh" >> ~/.zshrc.local
 
 CMD [ "/bin/bash" ]
